@@ -1,4 +1,4 @@
-import psycopg2
+from database import Database, ConnectionCursor
 import json
 
 # import warnings
@@ -7,35 +7,20 @@ import json
 
 # warnings.simplefilter('ignore')
 
-
-def conn_psql(command):
-    conn_string = "host='192.168.31.103' dbname='cache' user='postgres' password=''"
-    conn = psycopg2.connect(conn_string)
-    # print(command)
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute(command)
-            # fetch = cursor.fetchall()
-        # print('Successfully', fetch)
-    except psycopg2.Error as e:
-        print("Exception: {}".format(e))
-        raise SystemExit(e)
-    finally:
-        # print("finally")
-        conn.commit()
-        conn.close()
+Database.set_connection(host='192.168.31.103', database='cache', user='postgres', password='')
 
 
 def from_json(filename):
-    with open(filename) as f:
+    with open(filename, encoding='utf-8') as f:
         json_data = json.load(f)
 
-    for entity in json_data:
-        print(entity)
+        for item in json_data.values():
+            for key in item:
+                print(key, item[key])
 
 
-file = "data/cachedb_dump.json"
-from_json(file)
+# file = "data/cachedb_dump.json"
+# from_json(file)
 
 
 def from_file(filename):
@@ -53,16 +38,15 @@ def from_file(filename):
 
 
 def create_title_table():
-
     filename = "data/titles.txt"
     data_set = from_file(filename)
 
-    sql = "DROP TABLE IF EXISTS public.titles"
-    conn_psql(sql)
+    with ConnectionCursor() as cursor:
+        cursor.execute('CREATE OR REPLACE TABLE public.titles ( '
+                       'id character varying(20) PRIMARY KEY, '
+                       'name character varying(200) NOT NULL )')
+        for item in data_set:
+            cursor.execute('INSERT INTO public.titles (id, name) VALUES (%s, %s)', (item['key'], item['name']))
 
-    sql = "CREATE TABLE public.titles ( id character varying(20) PRIMARY KEY, name character varying(200) NOT NULL )"
-    conn_psql(sql)
 
-    for item in data_set:
-        sql = "INSERT INTO public.titles(id, name) VALUES ('{}', '{}');".format(item['key'], item['name'])
-        conn_psql(sql)
+# create_title_table()
