@@ -19,8 +19,8 @@ def from_json(filename):
                 print(key, item[key])
 
 
-# file = "data/cachedb_dump.json"
-# from_json(file)
+file = "data/cachedb_dump.json"
+from_json(file)
 
 
 def from_file(filename):
@@ -42,7 +42,8 @@ def create_title_table():
     data_set = from_file(filename)
 
     with ConnectionCursor() as cursor:
-        cursor.execute('CREATE OR REPLACE TABLE public.titles ( '
+        cursor.execute('DROP TABLE IF EXISTS public.titles')
+        cursor.execute('CREATE TABLE public.titles ( '
                        'id character varying(20) PRIMARY KEY, '
                        'name character varying(200) NOT NULL )')
         for item in data_set:
