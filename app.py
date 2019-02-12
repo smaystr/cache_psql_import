@@ -8,6 +8,7 @@ import json
 # warnings.simplefilter('ignore')
 
 Database.set_connection(host='192.168.31.103', database='cache', user='postgres', password='')
+# Database.set_connection(host='localhost', database='cache', user='postgres', password='asd123')
 
 
 def from_json(filename):
@@ -16,6 +17,8 @@ def from_json(filename):
 
         for item in json_data.values():
             for key in item:
+#                key_list = key.split(',')
+#                key_param = key_list.pop(0)
                 print(key, item[key])
 
 
@@ -25,7 +28,7 @@ from_json(file)
 
 def from_file(filename):
     data = []
-    with open(filename, "r") as f:
+    with open(filename, encoding='utf-8') as f:
         content = f.read().splitlines()
         for line in content:
             row_data = line.split(":")
