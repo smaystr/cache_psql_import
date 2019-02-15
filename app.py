@@ -34,8 +34,9 @@ def from_json(filename):
                     article_id = key[:key.index(',')]
                     title_id = key[key.index(',')+1:]
 
-                    cursor.execute('INSERT INTO public.data (article_id, title_id, field_value) '
-                                   'VALUES (%s, %s, %s)', (article_id, title_id, item[key]))
+                    if not (title_id.startswith('8') or title_id.startswith('9')):
+                        cursor.execute('INSERT INTO public.data (article_id, title_id, field_value) '
+                                       'VALUES (%s, %s, %s)', (article_id, title_id, item[key]))
 
                     # print(article_id, "|", title_id, "|", key, "|", item[key])
 
