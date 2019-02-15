@@ -12,14 +12,32 @@ Database.set_connection(host='192.168.31.103', database='cache', user='postgres'
 
 
 def from_json(filename):
+
+    with ConnectionCursor() as cursor:
+        cursor.execute('DROP TABLE IF EXISTS public.data')
+        cursor.execute('CREATE TABLE public.data ( '
+                       'id serial PRIMARY KEY, '
+                       'article_id integer, '
+                       'title_id character varying(20), '
+                       'field_value text, '
+                       'CONSTRAINT fk_title_data FOREIGN KEY(title_id) '
+                       'REFERENCES public.titles(id) MATCH SIMPLE '
+                       'ON UPDATE NO ACTION '
+                       'ON DELETE NO ACTION);')
+
     with open(filename, encoding='utf-8') as f:
         json_data = json.load(f)
 
-        for item in json_data.values():
-            for key in item:
-#                key_list = key.split(',')
-#                key_param = key_list.pop(0)
-                print(key, item[key])
+        with ConnectionCursor() as cursor:
+            for item in json_data.values():
+                for key in item:
+                    article_id = key[:key.index(',')]
+                    title_id = key[key.index(',')+1:]
+
+                    cursor.execute('INSERT INTO public.data (article_id, title_id, field_value) '
+                                   'VALUES (%s, %s, %s)', (article_id, title_id, item[key]))
+
+                    # print(article_id, "|", title_id, "|", key, "|", item[key])
 
 
 file = "data/cachedb_dump.json"
