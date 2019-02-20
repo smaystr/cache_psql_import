@@ -41,10 +41,6 @@ def from_json(filename):
                     # print(article_id, "|", title_id, "|", key, "|", item[key])
 
 
-file = "data/cachedb_dump.json"
-from_json(file)
-
-
 def from_file(filename):
     data = []
     with open(filename, encoding='utf-8') as f:
@@ -73,3 +69,6 @@ def create_title_table():
 
 
 # create_title_table()
+
+file = "data/data_tmp.json"
+from_json(file)
