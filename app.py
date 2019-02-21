@@ -25,7 +25,7 @@ def from_json(filename):
                        'ON UPDATE NO ACTION '
                        'ON DELETE NO ACTION);')
 
-    with open(filename, encoding='utf-8') as f:
+    with open(filename, encoding='cp1251') as f:
         json_data = json.load(f)
 
         with ConnectionCursor() as cursor:
@@ -70,5 +70,5 @@ def create_title_table():
 
 # create_title_table()
 
-file = "data/data_tmp.json"
+file = "data/DATAnn"
 from_json(file)
