@@ -7,8 +7,8 @@ import json
 
 # warnings.simplefilter('ignore')
 
-# Database.set_connection(host='192.168.31.103', database='cache', user='postgres', password='')
-Database.set_connection(host='localhost', database='cache', user='postgres', password='asd123')
+Database.set_connection(host='192.168.31.103', database='cache', user='postgres', password='')
+# Database.set_connection(host='localhost', database='cache', user='postgres', password='asd123')
 
 
 def from_json(filename):
@@ -25,7 +25,7 @@ def from_json(filename):
                        'ON UPDATE NO ACTION '
                        'ON DELETE NO ACTION);')
 
-    with open(filename, encoding='utf-8') as f:
+    with open(filename, encoding='cp1251') as f:
         json_data = json.load(f)
 
         with ConnectionCursor() as cursor:
@@ -39,10 +39,6 @@ def from_json(filename):
                                        'VALUES (%s, %s, %s)', (article_id, title_id, item[key]))
 
                     # print(article_id, "|", title_id, "|", key, "|", item[key])
-
-
-file = "data/data"
-from_json(file)
 
 
 def from_file(filename):
@@ -73,3 +69,6 @@ def create_title_table():
 
 
 # create_title_table()
+
+file = "data/DATAnn"
+from_json(file)
