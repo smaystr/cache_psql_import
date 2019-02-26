@@ -7,8 +7,8 @@ import json
 
 # warnings.simplefilter('ignore')
 
-Database.set_connection(host='192.168.31.103', database='cache', user='postgres', password='')
-# Database.set_connection(host='localhost', database='cache', user='postgres', password='asd123')
+# Database.set_connection(host='192.168.31.103', database='cache', user='postgres', password='')
+Database.set_connection(host='localhost', database='cache', user='postgres', password='asd123')
 
 
 def from_json(filename):
@@ -41,7 +41,7 @@ def from_json(filename):
                     # print(article_id, "|", title_id, "|", key, "|", item[key])
 
 
-file = "data/cachedb_dump.json"
+file = "data/data"
 from_json(file)
 
 
