@@ -15,18 +15,14 @@ def fix_json(filename):
 
     with open(filename, encoding='cp1251') as f:
         with open(filename + '.out', "w") as f1:
+            newline = f.readline()
             for line in f:
-                if line.startswith('{') or line.startswith('}') or line.endswith(': {\n'):
-                    f1.write(line)
+                if (line.startswith('"') and len(line) > 3) or line.startswith('}'):
+                    f1.write(newline)
+                    newline = line
                 else:
-                    if line.startswith('"') and len(line) > 3:
-                        newline = line
-                    else:
-                        newline = newline.replace('\n', '') + line
-                    print(line.endswith('",\n'), line.endswith('"\n'), not line.endswith('\"\n'))
-                    print(newline, line)
-                    if line.endswith('",\n') or (line.endswith('"\n') and not line.endswith('\"\n')):
-                        f1.write(newline)
+                    newline = newline.replace('\n', '') + line
+            f1.write(newline)
 
 
 def from_json(filename):
@@ -98,8 +94,8 @@ def create_title_table():
 # create_title_table()
 
 # file = "data/datan2.txt"
-file = "data/test"
-fix_json(file)
+# file = "data/test"
+# fix_json(file)
 
-# file = "data/datan2.txt.out"
-# from_json(file)
+file = "data/datan2.txt.out"
+from_json(file)
