@@ -11,6 +11,20 @@ Database.set_connection(host='192.168.31.103', database='cache', user='postgres'
 # Database.set_connection(host='localhost', database='cache', user='postgres', password='asd123')
 
 
+def fix_json(filename):
+
+    with open(filename, encoding='cp1251') as f:
+        with open(filename + '.out', "w") as f1:
+            newline = f.readline()
+            for line in f:
+                if (line.startswith('"') and len(line) > 3) or line.startswith('}'):
+                    f1.write(newline)
+                    newline = line
+                else:
+                    newline = newline.replace('\n', '') + line
+            f1.write(newline)
+
+
 def from_json(filename):
 
     with ConnectionCursor() as cursor:
@@ -19,26 +33,35 @@ def from_json(filename):
                        'id serial PRIMARY KEY, '
                        'article_id integer, '
                        'title_id character varying(20), '
+                       'number integer, '
                        'field_value text, '
                        'CONSTRAINT fk_title_data FOREIGN KEY(title_id) '
                        'REFERENCES public.titles(id) MATCH SIMPLE '
                        'ON UPDATE NO ACTION '
                        'ON DELETE NO ACTION);')
 
-    with open(filename, encoding='cp1251') as f:
+    with open(filename) as f:
         json_data = json.load(f)
 
         with ConnectionCursor() as cursor:
+            i = 0
             for item in json_data.values():
+                i += 1
                 for key in item:
                     article_id = key[:key.index(',')]
                     title_id = key[key.index(',')+1:]
+                    number = '0'
+
+                    if title_id.startswith('lit'):
+                        number = title_id[title_id.rindex(',')+1:]
+                        title_id = title_id[:title_id.rindex(',')]
 
                     if not (title_id.startswith('8') or title_id.startswith('9')):
-                        cursor.execute('INSERT INTO public.data (article_id, title_id, field_value) '
-                                       'VALUES (%s, %s, %s)', (article_id, title_id, item[key]))
+                        cursor.execute('INSERT INTO public.data (article_id, title_id, number, field_value) '
+                                       'VALUES (%s, %s, %s, %s)', (article_id, title_id, number, item[key]))
 
-                    # print(article_id, "|", title_id, "|", key, "|", item[key])
+                if i % 100 == 0:
+                    print("Обработано {} записей".format(i))
 
 
 def from_file(filename):
@@ -70,5 +93,9 @@ def create_title_table():
 
 # create_title_table()
 
-file = "data/DATAnn"
+# file = "data/datan2.txt"
+# file = "data/test"
+# fix_json(file)
+
+file = "data/datan2.txt.out"
 from_json(file)
