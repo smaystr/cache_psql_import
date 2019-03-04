@@ -13,55 +13,88 @@ Database.set_connection(host='192.168.31.103', database='cache', user='postgres'
 
 def fix_json(filename):
 
+    files = []
+    objects_per_file = 10000
+    count = 0
     with open(filename, encoding='cp1251') as f:
-        with open(filename + '.out', "w") as f1:
-            newline = f.readline()
-            for line in f:
-                if (line.startswith('"') and len(line) > 3) or line.startswith('}'):
-                    f1.write(newline)
-                    newline = line
+
+        newline = f.readline()
+        small_filename = filename[:filename.rindex('.')] + '_{}.txt'.format(count + objects_per_file)
+        files.append(small_filename)
+        smallfile = open(small_filename, "w")
+        count = 0
+        new_file = False
+
+        for line in f:
+            if (line.startswith('"') and len(line) > 3) or line.startswith('}'):
+                if newline == '},\n' or newline == '}\n':
+                    count += 1
+                    if count % objects_per_file == 0:
+                        smallfile.write('}\n')
+                        smallfile.write('}\n')
+                        smallfile.close()
+                        if line == '}\n':
+                            return files
+
+                        small_filename = filename[:filename.rindex('.')] + '_{}.txt'.format(count + objects_per_file)
+                        files.append(small_filename)
+                        smallfile = open(small_filename, "w")
+                        smallfile.write('{\n')
+                        new_file = True
+
+                if new_file:
+                    new_file = False
                 else:
-                    newline = newline.replace('\n', '') + line
-            f1.write(newline)
+                    smallfile.write(newline)
+
+                # Take next line and remove non-printable characters
+                newline = line.replace(chr(0x1f), ' ')      # 'US' (unit separator)
+                newline = newline.replace(chr(0x06), '\\"')    # 'ACK' (Acknowledge)
+
+            else:
+                # Remove newline character and concatenate with next line
+                newline = newline.replace('\n', '') + line
 
 
-def from_json(filename):
+def from_json(files, drop):
 
-    with ConnectionCursor() as cursor:
-        cursor.execute('DROP TABLE IF EXISTS public.data')
-        cursor.execute('CREATE TABLE public.data ( '
-                       'id serial PRIMARY KEY, '
-                       'article_id integer, '
-                       'title_id character varying(20), '
-                       'number integer, '
-                       'field_value text, '
-                       'CONSTRAINT fk_title_data FOREIGN KEY(title_id) '
-                       'REFERENCES public.titles(id) MATCH SIMPLE '
-                       'ON UPDATE NO ACTION '
-                       'ON DELETE NO ACTION);')
-
-    with open(filename) as f:
-        json_data = json.load(f)
-
+    if drop:
         with ConnectionCursor() as cursor:
-            i = 0
-            for item in json_data.values():
-                i += 1
-                for key in item:
-                    article_id = key[:key.index(',')]
-                    title_id = key[key.index(',')+1:]
-                    number = '0'
+            cursor.execute('DROP TABLE IF EXISTS public.data')
+            cursor.execute('CREATE TABLE public.data ( '
+                           'id serial PRIMARY KEY, '
+                           'article_id integer, '
+                           'title_id character varying(20), '
+                           'number integer, '
+                           'field_value text, '
+                           'CONSTRAINT fk_title_data FOREIGN KEY(title_id) '
+                           'REFERENCES public.titles(id) MATCH SIMPLE '
+                           'ON UPDATE NO ACTION '
+                           'ON DELETE NO ACTION);')
 
-                    if title_id.startswith('lit'):
-                        number = title_id[title_id.rindex(',')+1:]
-                        title_id = title_id[:title_id.rindex(',')]
+    for filename in files:
+        with open(filename) as f:
+            json_data = json.load(f)
 
-                    if not (title_id.startswith('8') or title_id.startswith('9')):
-                        cursor.execute('INSERT INTO public.data (article_id, title_id, number, field_value) '
-                                       'VALUES (%s, %s, %s, %s)', (article_id, title_id, number, item[key]))
+            with ConnectionCursor() as cursor:
+                i = 0
+                for item in json_data.values():
+                    i += 1
+                    for key in item:
+                        article_id = key[:key.index(',')]
+                        title_id = key[key.index(',')+1:]
+                        number = '0'
 
-                if i % 100 == 0:
-                    print("Обработано {} записей".format(i))
+                        if title_id.startswith('lit'):
+                            number = title_id[title_id.rindex(',')+1:]
+                            title_id = title_id[:title_id.rindex(',')]
+
+                        if not (title_id.startswith('8') or title_id.startswith('9')):
+                            cursor.execute('INSERT INTO public.data (article_id, title_id, number, field_value) '
+                                           'VALUES (%s, %s, %s, %s)', (article_id, title_id, number, item[key]))
+
+                    if i % 1000 == 0:
+                        print("Обработано {} записей из файла {}".format(i, filename))
 
 
 def from_file(filename):
@@ -83,6 +116,7 @@ def create_title_table():
     data_set = from_file(filename)
 
     with ConnectionCursor() as cursor:
+        cursor.execute('DROP TABLE IF EXISTS public.data')
         cursor.execute('DROP TABLE IF EXISTS public.titles')
         cursor.execute('CREATE TABLE public.titles ( '
                        'id character varying(20) PRIMARY KEY, '
@@ -91,11 +125,25 @@ def create_title_table():
             cursor.execute('INSERT INTO public.titles (id, name) VALUES (%s, %s)', (item['key'], item['name']))
 
 
-# create_title_table()
+def main():
+    while True:
+        selection = input("1. Drop and create 'title' table (WARNING! table 'data' also DROP).\n"
+                          "2. Fix and split json file, DROP and CREATE 'data' table from resulting json files.\n"
+                          "3. Fix and split json file, INSERT to 'data' table from resulting json files.\n"
+                          "4. Quit.\n"
+                          "Enter your selection: ")
+        if selection == '1':
+            create_title_table()
+        elif selection == '2':
+            file = "data/datan2.txt"
+            files = fix_json(file)
+            from_json(files, True)
+        elif selection == '3':
+            file = "data/datan2.txt"
+            files = fix_json(file)
+            from_json(files, False)
+        elif selection == '4':
+            return
 
-# file = "data/datan2.txt"
-# file = "data/test"
-# fix_json(file)
 
-file = "data/datan2.txt.out"
-from_json(file)
+main()
