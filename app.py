@@ -7,8 +7,8 @@ import json
 
 # warnings.simplefilter('ignore')
 
-Database.set_connection(host='192.168.31.103', database='cache', user='postgres', password='')
-# Database.set_connection(host='localhost', database='cache', user='postgres', password='asd123')
+# Database.set_connection(host='192.168.31.103', database='cache', user='postgres', password='')
+Database.set_connection(host='localhost', database='cache', user='postgres', password='postgres')
 
 
 def fix_json(filename):
@@ -54,6 +54,15 @@ def fix_json(filename):
             else:
                 # Remove newline character and concatenate with next line
                 newline = newline.replace('\n', '') + line
+
+
+def import_data():
+    Database.set_connection(host='localhost', database='kais', user='postgres', password='postgres')
+    connstr = 'host=localhost dbname=cache user=postgres password=postgres'
+    with ConnectionCursor() as cursor:
+        cursor.execute("SELECT dblink_connect('cache', %s);", (connstr,))
+
+        cursor.execute("SELECT dblink_disconnect('cache');")
 
 
 def from_json(files, drop):
@@ -130,7 +139,8 @@ def main():
         selection = input("1. Drop and create 'title' table (WARNING! table 'data' also DROP).\n"
                           "2. Fix and split json file, DROP and CREATE 'data' table from resulting json files.\n"
                           "3. Fix and split json file, INSERT to 'data' table from resulting json files.\n"
-                          "4. Quit.\n"
+                          "4. Import data.\n"
+                          "5. Quit.\n"
                           "Enter your selection: ")
         if selection == '1':
             create_title_table()
@@ -143,6 +153,8 @@ def main():
             files = fix_json(file)
             from_json(files, False)
         elif selection == '4':
+            import_data()
+        elif selection == '5':
             return
 
 
