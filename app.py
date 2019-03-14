@@ -16,7 +16,7 @@ def fix_json(filename):
     files = []
     objects_per_file = 10000
     count = 0
-    with open(filename, encoding='cp1251') as f:
+    with open(filename, encoding='utf-8') as f:
 
         newline = f.readline()
         small_filename = filename[:filename.rindex('.')] + '_{}.txt'.format(count + objects_per_file)
@@ -33,7 +33,7 @@ def fix_json(filename):
                         smallfile.write('}\n')
                         smallfile.write('}\n')
                         smallfile.close()
-                        if line == '}\n':
+                        if line == '}\n' or line == '}':
                             return files
 
                         small_filename = filename[:filename.rindex('.')] + '_{}.txt'.format(count + objects_per_file)
@@ -48,12 +48,14 @@ def fix_json(filename):
                     smallfile.write(newline)
 
                 # Take next line and remove non-printable characters
-                newline = line.replace(chr(0x1f), ' ')      # 'US' (unit separator)
+                newline = line.replace(chr(0x1f), ' ')         # 'US' (unit separator)
                 newline = newline.replace(chr(0x06), '\\"')    # 'ACK' (Acknowledge)
 
             else:
                 # Remove newline character and concatenate with next line
                 newline = newline.replace('\n', '') + line
+
+    return files
 
 
 def import_data():
@@ -145,11 +147,12 @@ def main():
         if selection == '1':
             create_title_table()
         elif selection == '2':
-            file = "data/datan2.txt"
+            file = "data/d_utf.txt"
             files = fix_json(file)
+            print(files)
             from_json(files, True)
         elif selection == '3':
-            file = "data/datan2.txt"
+            file = "data/datan.txt"
             files = fix_json(file)
             from_json(files, False)
         elif selection == '4':
