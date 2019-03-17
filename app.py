@@ -16,7 +16,7 @@ def fix_json(filename):
     files = []
     objects_per_file = 10000
     count = 0
-    with open(filename, encoding='utf-8') as f:
+    with open(filename, encoding='cp1251', errors='ignore') as f:
 
         newline = f.readline()
         small_filename = filename[:filename.rindex('.')] + '_{}.txt'.format(count + objects_per_file)
@@ -26,36 +26,29 @@ def fix_json(filename):
         new_file = False
 
         for line in f:
-            if (line.startswith('"') and len(line) > 3) or line.startswith('}'):
-                if newline == '},\n' or newline == '}\n':
-                    count += 1
-                    if count % objects_per_file == 0:
-                        smallfile.write('}\n')
-                        smallfile.write('}\n')
-                        smallfile.close()
-                        if line == '}\n' or line == '}':
-                            return files
+            if newline == '},\n' or newline == '}\n':
+                count += 1
+                if count % objects_per_file == 0 or line == '}\n':
+                    smallfile.write('}\n')
+                    smallfile.write('}\n')
+                    smallfile.close()
+                    if line == '}\n':
+                        return files
 
-                        small_filename = filename[:filename.rindex('.')] + '_{}.txt'.format(count + objects_per_file)
-                        files.append(small_filename)
-                        smallfile = open(small_filename, "w")
-                        smallfile.write('{\n')
-                        new_file = True
+                    small_filename = filename[:filename.rindex('.')] + '_{}.txt'.format(count + objects_per_file)
+                    files.append(small_filename)
+                    smallfile = open(small_filename, "w")
+                    smallfile.write('{\n')
+                    new_file = True
 
-                if new_file:
-                    new_file = False
-                else:
-                    smallfile.write(newline)
-
-                # Take next line and remove non-printable characters
-                newline = line.replace(chr(0x1f), ' ')         # 'US' (unit separator)
-                newline = newline.replace(chr(0x06), '\\"')    # 'ACK' (Acknowledge)
-
+            if new_file:
+                new_file = False
             else:
-                # Remove newline character and concatenate with next line
-                newline = newline.replace('\n', '') + line
+                smallfile.write(newline)
 
-    return files
+            # Take next line and remove non-printable characters
+            newline = line.replace(chr(0x1f), ' ')         # 'US' (unit separator)
+            newline = newline.replace(chr(0x06), '\\"')    # 'ACK' (Acknowledge)
 
 
 def import_data():
@@ -63,6 +56,8 @@ def import_data():
     connstr = 'host=localhost dbname=cache user=postgres password=postgres'
     with ConnectionCursor() as cursor:
         cursor.execute("SELECT dblink_connect('cache', %s);", (connstr,))
+
+        cursor.execute("INSERT INTO SELECT dblink_connect('cache', %s);", (connstr,))
 
         cursor.execute("SELECT dblink_disconnect('cache');")
 
@@ -140,24 +135,19 @@ def main():
     while True:
         selection = input("1. Drop and create 'title' table (WARNING! table 'data' also DROP).\n"
                           "2. Fix and split json file, DROP and CREATE 'data' table from resulting json files.\n"
-                          "3. Fix and split json file, INSERT to 'data' table from resulting json files.\n"
-                          "4. Import data.\n"
-                          "5. Quit.\n"
+                          "3. Import data.\n"
+                          "4. Quit.\n"
                           "Enter your selection: ")
         if selection == '1':
             create_title_table()
         elif selection == '2':
-            file = "data/d_utf.txt"
+            file = "data/datan.txt"
             files = fix_json(file)
             print(files)
             from_json(files, True)
         elif selection == '3':
-            file = "data/datan.txt"
-            files = fix_json(file)
-            from_json(files, False)
-        elif selection == '4':
             import_data()
-        elif selection == '5':
+        elif selection == '4':
             return
 
 
