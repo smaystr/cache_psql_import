@@ -8,7 +8,9 @@ import json
 # warnings.simplefilter('ignore')
 
 # Database.set_connection(host='192.168.31.103', database='cache', user='postgres', password='')
+
 Database.set_connection(host='localhost', database='cache', user='postgres', password='postgres')
+# Database.set_connection(host='localhost', database='kais', user='postgres', password='postgres')
 
 
 def fix_json(filename):
@@ -51,15 +53,81 @@ def fix_json(filename):
             newline = newline.replace(chr(0x06), '\\"')    # 'ACK' (Acknowledge)
 
 
-def import_data():
-    Database.set_connection(host='localhost', database='kais', user='postgres', password='postgres')
-    connstr = 'host=localhost dbname=cache user=postgres password=postgres'
+def check_data():
+    filename = "check3.txt"
     with ConnectionCursor() as cursor:
-        cursor.execute("SELECT dblink_connect('cache', %s);", (connstr,))
+        cursor.execute("SELECT d1.id, d1.article_id, d1.field_value, d2.id, "
+                       "d2.field_value, d3.field_value from data d1 "
+                       "LEFT JOIN data d2 ON d1.article_id = d2.article_id AND d2.title_id = '2,0,a,ru' "
+                       "LEFT JOIN data d3 ON d1.article_id = d3.article_id AND d3.title_id = '3,30,a,ang' "
+                       "WHERE d1.title_id='7,0,ru' AND LENGTH(d1.field_value) > 63 ORDER BY d1.article_id")
+        records = cursor.fetchall()
+        n = 0
+        with open(filename, "w") as f:
+            f.write("rid|article_id|field_value1|field_value2|field_value3\n")
 
-        cursor.execute("INSERT INTO SELECT dblink_connect('cache', %s);", (connstr,))
+            for row in records:
+                field_value = row[2]
 
-        cursor.execute("SELECT dblink_disconnect('cache');")
+                if field_value.find('. ') > 0 and not field_value.split(None, 1)[1][:1].isupper():
+                    f.write(str(row[0]) + '|' + str(row[1]) + '|' + str(field_value) +
+                            "|" + str(row[3]) + "|" + str(row[4]) + "|" + str(row[5]) + "\n")
+                    # print(str(rid) + '|' + field_value.split(None, 1)[1][:1])
+                    n += 1
+
+                # new_value = field_value
+                # first_del_pos = new_value.find("<")  # get the position of <
+                # while first_del_pos > 0:
+                #     second_del_pos = new_value.find(">")  # get the position of >
+                #     if second_del_pos < len(new_value)-1:
+                #         if new_value[first_del_pos-1] == ' ' and new_value[second_del_pos+1] == ' ':
+                #             first_del_pos -= 1
+                #     new_value = new_value.replace(new_value[first_del_pos:second_del_pos+1], '')
+                #     first_del_pos = new_value.find("<")  # get the position of <
+                #
+                # cursor.execute("UPDATE data SET field_value=%s WHERE id=%s", (new_value, rid))
+                # updated_rows = cursor.rowcount
+                # print(str(updated_rows) + " rows updated|" + str(rid) + '|' + str(field_value) + ' -> ' + str(new_value))
+                # # print(str(rid) + '|' + str(field_value) + ' -> ' + str(new_value))
+                # n += updated_rows
+
+    print(str(n) + " rows printed out")
+
+
+def export_data():
+    filename = "export_auth.txt"
+    i = 0
+
+    with ConnectionCursor() as cursor:
+        cursor.execute("SELECT d1.article_id, d2.field_value, d3.field_value, d4.field_value FROM data d1 "
+                       "LEFT JOIN data d2 ON d1.article_id = d2.article_id AND d2.title_id = '7,0' "
+                       "LEFT JOIN data d3 ON d1.article_id = d3.article_id AND d3.title_id = '7,0,ang' "
+                       "LEFT JOIN data d4 ON d1.article_id = d4.article_id AND d4.title_id = '7,0,ru' "
+                       "WHERE d1.title_id = '2,0,a' ORDER BY d1.article_id")
+        records = cursor.fetchall()
+        with open(filename, "w") as f:
+            f.write("article_id\tfield_value1\tcount1\tfield_value2\tcount2\tfield_value3\tcount3\n")
+            for row in records:
+                article_id = row[0]
+                field_value1 = row[1]
+                field_value2 = row[2]
+                field_value3 = row[3]
+
+                count1 = 0
+                count2 = 0
+                count3 = 0
+                if row[1] is not None:
+                    count1 = field_value1.count(',') + 1
+                if row[2] is not None:
+                    count2 = field_value2.count(',') + 1
+                if row[3] is not None:
+                    count3 = field_value3.count(',') + 1
+
+                f.write(str(row[0]) + "\t" + str(row[1]) + "\t" + str(count1) + "\t" +
+                        str(row[2]) + "\t" + str(count2) + "\t" + str(row[3]) + "\t" + str(count3) + "\n")
+                i += 1
+
+    print("Обработано {} записей. Последняя обработанная запись № {}".format(i, article_id))
 
 
 def from_json(files, drop):
@@ -105,16 +173,65 @@ def from_json(files, drop):
 
 def from_file(filename):
     data = []
-    with open(filename, encoding='utf-8') as f:
+    with open(filename, encoding='cp1251') as f:
         content = f.read().splitlines()
         for line in content:
-            row_data = line.split(":")
-            row = {'key': row_data[0],
-                   'name': row_data[1]
+            row_data = line.split("\t")
+            row = {'f1': row_data[0],
+                   'f2': row_data[1],
+                   'f3': row_data[2],
+                   'f4': row_data[3]
                    }
             data.append(row)
 
     return data
+
+
+def import_data():
+    filename = "pub3.txt"
+    data_set = from_file(filename)
+    inserted_rows = 0
+    skipped_rows = 0
+
+    with ConnectionCursor() as cursor:
+        for item in data_set:
+            if item['f2'] == "None":
+                item['f2'] = ""
+            if item['f3'] == "None":
+                item['f3'] = ""
+            if item['f4'] == "None":
+                item['f4'] = ""
+
+            if (item['f2'] != "") or (item['f3'] != "") or (item['f4'] != ""):
+                cursor.execute('INSERT INTO public."publication-lang"("publication-id_publications", '
+                               '"language-id_languages", "pub-lang-title", "abstract-lang", "authors-lang") '
+                               'VALUES (%s, %s, %s, %s, %s)',
+                               (item['f1'], "9", item['f2'], item['f3'], item['f4']))
+                inserted_rows += cursor.rowcount
+                # print(str(cursor.rowcount) + " rows updated")
+            else:
+                print("row " + str(item['f1']) + " skipped")
+                skipped_rows += 1
+
+    print(str(inserted_rows) + " rows TOTAL inserted")
+    print(str(skipped_rows) + " rows TOTAL skipped")
+    print(str(inserted_rows+skipped_rows) + " rows IN TOTAL")
+
+
+def update_data_table():
+    filename = "export31.txt"
+    data_set = from_file(filename)
+    updated_rows = 0
+    with ConnectionCursor() as cursor:
+        for item in data_set:
+            # cursor.execute("UPDATE data SET field_value=%s WHERE article_id=%s AND title_id='7,0,ru'",
+            #                (item['name'], item['key']))
+            cursor.execute("UPDATE data SET field_value=%s WHERE id=%s",
+                           (item['name'], item['key']))
+            updated_rows += cursor.rowcount
+            print(str(cursor.rowcount) + " rows updated")
+
+    print(str(updated_rows) + " rows TOTAL updated")
 
 
 def create_title_table():
@@ -133,21 +250,24 @@ def create_title_table():
 
 def main():
     while True:
-        selection = input("1. Drop and create 'title' table (WARNING! table 'data' also DROP).\n"
-                          "2. Fix and split json file, DROP and CREATE 'data' table from resulting json files.\n"
-                          "3. Import data.\n"
-                          "4. Quit.\n"
+        selection = input("1. Fix and split json file, DROP and CREATE 'data' table from resulting json files.\n"
+                          "2. Export data.\n"
+                          "3. Analise.\n"
+                          "4. Import data.\n"
+                          "5. Quit.\n"
                           "Enter your selection: ")
         if selection == '1':
-            create_title_table()
-        elif selection == '2':
             file = "data/datan.txt"
             files = fix_json(file)
             print(files)
             from_json(files, True)
+        elif selection == '2':
+            export_data()
         elif selection == '3':
-            import_data()
+            check_data()
         elif selection == '4':
+            import_data()
+        elif selection == '5':
             return
 
 
